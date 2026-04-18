@@ -1,18 +1,29 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage } = require('electron')
 const path = require('path')
 const Store = require('electron-store')
+const { autoUpdater } = require('electron-updater')
+
+autoUpdater.autoDownload = true
+autoUpdater.autoInstallOnAppQuit = true
 
 // ─── Persistência de dados ───────────────────────────────────────────────────
+function localDateStr(offsetDays = 0) {
+  const d = new Date()
+  d.setDate(d.getDate() + offsetDays)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 const store = new Store({
   defaults: {
     tasks: [
-      { id: '1', text: 'Revisar proposta do cliente', done: false, tag: 'urgente', createdAt: Date.now() },
-      { id: '2', text: 'Enviar relatório semanal', done: true, tag: 'trabalho', createdAt: Date.now() },
-      { id: '3', text: 'Comprar ingredientes para o jantar', done: false, tag: 'pessoal', createdAt: Date.now() }
+      { id: '1', text: 'Revisar proposta do cliente', done: false, tag: 'urgente', date: localDateStr(0), createdAt: Date.now() },
+      { id: '2', text: 'Enviar relatório semanal', done: true, tag: 'trabalho', date: localDateStr(0), createdAt: Date.now() },
+      { id: '3', text: 'Comprar ingredientes para o jantar', done: false, tag: 'pessoal', date: localDateStr(0), createdAt: Date.now() },
+      { id: '4', text: 'Preparar apresentação trimestral', done: false, tag: 'trabalho', date: localDateStr(1), createdAt: Date.now() }
     ],
     meetings: [
-      { id: '1', title: 'Sync semanal de produto', time: '14:00', duration: 60, link: 'https://meet.google.com', createdAt: Date.now() },
-      { id: '2', title: '1:1 com o gestor', time: '17:30', duration: 30, link: 'https://zoom.us', createdAt: Date.now() }
+      { id: '1', title: 'Sync semanal de produto', time: '14:00', duration: 60, link: 'https://meet.google.com', date: localDateStr(0), createdAt: Date.now() },
+      { id: '2', title: '1:1 com o gestor', time: '17:30', duration: 30, link: 'https://zoom.us', date: localDateStr(0), createdAt: Date.now() }
     ]
   }
 })
@@ -171,6 +182,36 @@ ipcMain.on('open-main-window', () => {
 // Controles da janela principal (minimizar, fechar)
 ipcMain.on('main-minimize', () => mainWindow?.minimize())
 ipcMain.on('main-close', () => mainWindow?.close())
+
+// ─── Atualizações ─────────────────────────────────────────────────────────────
+function sendUpdateStatus(status) {
+  mainWindow?.webContents.send('update-status', status)
+}
+
+autoUpdater.on('checking-for-update', () =>
+  sendUpdateStatus({ status: 'checking' }))
+
+autoUpdater.on('update-available', (info) =>
+  sendUpdateStatus({ status: 'available', version: info.version }))
+
+autoUpdater.on('update-not-available', () =>
+  sendUpdateStatus({ status: 'up-to-date' }))
+
+autoUpdater.on('download-progress', (p) =>
+  sendUpdateStatus({ status: 'downloading', percent: Math.round(p.percent) }))
+
+autoUpdater.on('update-downloaded', () =>
+  sendUpdateStatus({ status: 'downloaded' }))
+
+autoUpdater.on('error', (err) =>
+  sendUpdateStatus({ status: 'error', message: err.message }))
+
+ipcMain.on('check-for-updates', () => {
+  if (isDev) { sendUpdateStatus({ status: 'up-to-date' }); return }
+  autoUpdater.checkForUpdates()
+})
+
+ipcMain.on('install-update', () => autoUpdater.quitAndInstall())
 
 // ─── Inicialização ────────────────────────────────────────────────────────────
 app.whenReady().then(() => {

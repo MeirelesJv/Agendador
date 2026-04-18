@@ -59,7 +59,49 @@ html, body, #root {
 
 .titlebar-controls {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
+}
+
+.update-area {
+  display: flex;
+  align-items: center;
+}
+
+.update-btn {
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
+  color: rgba(255,255,255,0.25);
+  background: transparent;
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 5px;
+  padding: 4px 10px;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.update-btn:hover {
+  color: rgba(255,255,255,0.55);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.update-btn-ready {
+  color: rgba(100,200,130,0.7);
+  border-color: rgba(100,200,130,0.25);
+}
+
+.update-btn-ready:hover {
+  color: rgba(100,200,130,1);
+  border-color: rgba(100,200,130,0.5);
+}
+
+.update-info {
+  font-size: 10px;
+  color: rgba(255,255,255,0.22);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .tb-btn {
@@ -80,20 +122,130 @@ html, body, #root {
 .tb-btn:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.6); }
 .tb-close:hover { background: rgba(220,60,60,0.25); color: rgba(255,100,100,0.8); }
 
+/* ── Calendário ───────────────────────────────────────────────────────────── */
+.calendar {
+  padding: 10px 20px 8px;
+  border-bottom: 0.5px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cal-month {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.04em;
+  text-transform: capitalize;
+}
+
+.cal-nav {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.25);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 5px;
+  transition: color 0.15s;
+}
+
+.cal-nav:hover { color: rgba(255,255,255,0.6); }
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.cal-wd {
+  text-align: center;
+  font-size: 9px;
+  color: rgba(255,255,255,0.15);
+  letter-spacing: 0.08em;
+  padding: 4px 0;
+}
+
+.cal-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.cal-day:hover {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.75);
+}
+
+.cal-day.cal-today { color: rgba(255,255,255,0.85); font-weight: 500; }
+
+.cal-day.cal-sel {
+  background: rgba(255,255,255,0.12);
+  color: white;
+}
+
+.cal-day.cal-today.cal-sel {
+  background: rgba(120,180,255,0.18);
+  color: rgba(160,210,255,1);
+}
+
+.cal-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  flex-shrink: 0;
+}
+
+.cal-day.cal-today .cal-dot { background: rgba(120,180,255,0.6); }
+.cal-day.cal-sel .cal-dot { background: rgba(255,255,255,0.5); }
+
 /* ── Barra de resumo ──────────────────────────────────────────────────────── */
 .summary-bar {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 16px 24px;
+  gap: 16px;
+  padding: 10px 24px;
   border-bottom: 0.5px solid rgba(255,255,255,0.05);
   flex-shrink: 0;
+}
+
+.summary-date {
+  font-size: 11px;
+  color: rgba(255,255,255,0.28);
+  letter-spacing: 0.03em;
+  text-transform: capitalize;
+  min-width: 160px;
+}
+
+.summary-stats {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
 }
 
 .summary-stat {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .stat-num {
@@ -114,7 +266,7 @@ html, body, #root {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .sp-track {

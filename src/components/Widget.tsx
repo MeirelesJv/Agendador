@@ -68,19 +68,28 @@ function TaskItem({ task, onToggle }: { task: Task; onToggle: (id: string) => vo
 }
 
 // ─── Componente Principal do Widget ───────────────────────────────────────────
+function todayStr(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export function Widget() {
   const [isOpen, setIsOpen] = useState(false)
   const { tasks, meetings, loaded, toggleTask } = useStore()
   const panelRef = useRef<HTMLDivElement>(null)
 
-  const pendingCount = tasks.filter(t => !t.done).length
-  const doneCount = tasks.filter(t => t.done).length
-  const progressPct = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0
+  const today = todayStr()
+  const todayTasks = tasks.filter(t => !t.date || t.date === today)
+  const todayMeetings = meetings.filter(m => !m.date || m.date === today)
+
+  const pendingCount = todayTasks.filter(t => !t.done).length
+  const doneCount = todayTasks.filter(t => t.done).length
+  const progressPct = todayTasks.length ? Math.round((doneCount / todayTasks.length) * 100) : 0
 
   // Data de hoje formatada
-  const today = new Date()
-  const dayName = today.toLocaleDateString('pt-BR', { weekday: 'long' })
-  const dateStr = today.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })
+  const now = new Date()
+  const dayName = now.toLocaleDateString('pt-BR', { weekday: 'long' })
+  const dateStr = now.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })
 
   // Abre o painel e notifica o Electron para expandir a janela
   function openPanel() {
@@ -115,7 +124,6 @@ export function Widget() {
 
   return (
     <div className="widget-root">
-      {/* Pílula — visível quando fechado */}
       {!isOpen && <Pill hasPending={pendingCount > 0} onClick={openPanel} />}
 
       {/* Painel deslizante */}
@@ -148,16 +156,16 @@ export function Widget() {
           <div className="w-body">
 
             {/* Reuniões */}
-            {meetings.length > 0 && (
+            {todayMeetings.length > 0 && (
               <>
                 <div className="sec-label">reuniões</div>
-                {meetings.map(m => <MeetingCard key={m.id} meeting={m} />)}
+                {todayMeetings.map(m => <MeetingCard key={m.id} meeting={m} />)}
               </>
             )}
 
             {/* Tarefas */}
             <div className="sec-label">tarefas</div>
-            {tasks.map(t => (
+            {todayTasks.map(t => (
               <TaskItem key={t.id} task={t} onToggle={toggleTask} />
             ))}
 

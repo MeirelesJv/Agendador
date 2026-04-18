@@ -19,4 +19,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openMainWindow: () => ipcRenderer.send('open-main-window'),
   minimizeMain: () => ipcRenderer.send('main-minimize'),
   closeMain: () => ipcRenderer.send('main-close'),
+
+  // ── Atualizações ──────────────────────────────────────────────────────────
+  checkForUpdates: () => ipcRenderer.send('check-for-updates'),
+  installUpdate: () => ipcRenderer.send('install-update'),
+  onUpdateStatus: (cb) => ipcRenderer.on('update-status', (_, data) => cb(data)),
 })

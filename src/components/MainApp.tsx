@@ -1,7 +1,63 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useStore } from '../store/useStore'
-import { Task, Meeting } from '../types'
+import { Task, Meeting, UpdateStatus } from '../types'
 import './MainApp.css'
+
+function localDateStr(offsetDays = 0): string {
+  const d = new Date()
+  d.setDate(d.getDate() + offsetDays)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// ─── Calendário ───────────────────────────────────────────────────────────────
+function Calendar({ year, month, selected, todayStr, tasks, meetings, onSelect, onPrev, onNext }: {
+  year: number; month: number; selected: string; todayStr: string
+  tasks: Task[]; meetings: Meeting[]
+  onSelect: (d: string) => void; onPrev: () => void; onNext: () => void
+}) {
+  const MONTHS = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
+  const WDS = ['D','S','T','Q','Q','S','S']
+  const firstWd = new Date(year, month, 1).getDay()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  function ds(day: number) {
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  }
+
+  const cells: (number | null)[] = [
+    ...Array(firstWd).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ]
+
+  return (
+    <div className="calendar">
+      <div className="cal-header">
+        <button className="cal-nav" onClick={onPrev}>‹</button>
+        <span className="cal-month">{MONTHS[month]} {year}</span>
+        <button className="cal-nav" onClick={onNext}>›</button>
+      </div>
+      <div className="cal-grid">
+        {WDS.map((w, i) => <span key={`wd${i}`} className="cal-wd">{w}</span>)}
+        {cells.map((day, i) => {
+          if (!day) return <span key={`e${i}`} />
+          const d = ds(day)
+          const hasTask = tasks.some(t => t.date === d)
+          const hasMeet = meetings.some(m => m.date === d)
+          return (
+            <button
+              key={`d${i}`}
+              className={`cal-day${d === todayStr ? ' cal-today' : ''}${d === selected ? ' cal-sel' : ''}`}
+              onClick={() => onSelect(d)}
+            >
+              <span>{day}</span>
+              {(hasTask || hasMeet) && <span className="cal-dot" />}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 // ─── Modal: Adicionar Tarefa ──────────────────────────────────────────────────
 function AddTaskModal({ onAdd, onClose }: {
@@ -52,7 +108,7 @@ function AddTaskModal({ onAdd, onClose }: {
 
 // ─── Modal: Adicionar Reunião ─────────────────────────────────────────────────
 function AddMeetingModal({ onAdd, onClose }: {
-  onAdd: (data: Omit<Meeting, 'id' | 'createdAt'>) => void
+  onAdd: (data: Omit<Meeting, 'id' | 'createdAt' | 'date'>) => void
   onClose: () => void
 }) {
   const [title, setTitle] = useState('')
@@ -124,12 +180,33 @@ export function MainApp() {
   const [tab, setTab] = useState<'tasks' | 'meetings'>('tasks')
   const [showAddTask, setShowAddTask] = useState(false)
   const [showAddMeeting, setShowAddMeeting] = useState(false)
+  const [update, setUpdate] = useState<UpdateStatus | null>(null)
 
-  const pendingCount = tasks.filter(t => !t.done).length
-  const doneCount = tasks.filter(t => t.done).length
-  const progressPct = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0
+  const todayStr = localDateStr()
+  const [selectedDate, setSelectedDate] = useState(todayStr)
+  const [calYear, setCalYear] = useState(new Date().getFullYear())
+  const [calMonth, setCalMonth] = useState(new Date().getMonth())
 
-  const today = new Date().toLocaleDateString('pt-BR', {
+  useEffect(() => {
+    window.electronAPI?.onUpdateStatus(setUpdate)
+  }, [])
+
+  function prevMonth() {
+    if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) }
+    else setCalMonth(m => m - 1)
+  }
+  function nextMonth() {
+    if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1) }
+    else setCalMonth(m => m + 1)
+  }
+
+  const dayTasks = tasks.filter(t => t.date === selectedDate)
+  const dayMeetings = meetings.filter(m => m.date === selectedDate)
+  const pendingCount = dayTasks.filter(t => !t.done).length
+  const doneCount = dayTasks.filter(t => t.done).length
+  const progressPct = dayTasks.length ? Math.round((doneCount / dayTasks.length) * 100) : 0
+
+  const selectedLabel = new Date(selectedDate + 'T12:00').toLocaleDateString('pt-BR', {
     weekday: 'long', day: 'numeric', month: 'long'
   })
 
@@ -137,53 +214,74 @@ export function MainApp() {
 
   return (
     <div className="main-root">
-      {/* Barra de título customizada (sem frame nativo) */}
+
+      {/* Barra de título */}
       <div className="titlebar" style={{ WebkitAppRegion: 'drag' } as any}>
         <div className="titlebar-left">
           <span className="app-name">Agendeiro</span>
-          <span className="app-date">{today}</span>
         </div>
         <div className="titlebar-controls" style={{ WebkitAppRegion: 'no-drag' } as any}>
+          <div className="update-area">
+            {(!update || update.status === 'error') && (
+              <button className="update-btn" onClick={() => window.electronAPI?.checkForUpdates()}>
+                {update?.status === 'error' ? 'erro — tentar novamente' : 'verificar atualizações'}
+              </button>
+            )}
+            {update?.status === 'checking' && <span className="update-info">verificando…</span>}
+            {update?.status === 'up-to-date' && <span className="update-info">✓ atualizado</span>}
+            {update?.status === 'available' && <span className="update-info">baixando v{update.version}…</span>}
+            {update?.status === 'downloading' && <span className="update-info">baixando {update.percent}%</span>}
+            {update?.status === 'downloaded' && (
+              <button className="update-btn update-btn-ready" onClick={() => window.electronAPI?.installUpdate()}>
+                reiniciar e instalar
+              </button>
+            )}
+          </div>
           <button className="tb-btn" onClick={() => window.electronAPI?.minimizeMain()}>─</button>
           <button className="tb-btn tb-close" onClick={() => window.electronAPI?.closeMain()}>✕</button>
         </div>
       </div>
 
-      {/* Resumo do dia */}
+      {/* Calendário */}
+      <Calendar
+        year={calYear} month={calMonth}
+        selected={selectedDate} todayStr={todayStr}
+        tasks={tasks} meetings={meetings}
+        onSelect={setSelectedDate}
+        onPrev={prevMonth} onNext={nextMonth}
+      />
+
+      {/* Resumo do dia selecionado */}
       <div className="summary-bar">
-        <div className="summary-stat">
-          <span className="stat-num">{pendingCount}</span>
-          <span className="stat-label">pendentes</span>
-        </div>
-        <div className="summary-stat">
-          <span className="stat-num">{doneCount}</span>
-          <span className="stat-label">concluídas</span>
-        </div>
-        <div className="summary-stat">
-          <span className="stat-num">{meetings.length}</span>
-          <span className="stat-label">reuniões</span>
-        </div>
-        <div className="summary-progress">
-          <div className="sp-track">
-            <div className="sp-fill" style={{ width: `${progressPct}%` }} />
+        <span className="summary-date">{selectedLabel}</span>
+        <div className="summary-stats">
+          <div className="summary-stat">
+            <span className="stat-num">{pendingCount}</span>
+            <span className="stat-label">pendentes</span>
           </div>
-          <span className="sp-label">{progressPct}%</span>
+          <div className="summary-stat">
+            <span className="stat-num">{doneCount}</span>
+            <span className="stat-label">concluídas</span>
+          </div>
+          <div className="summary-stat">
+            <span className="stat-num">{dayMeetings.length}</span>
+            <span className="stat-label">reuniões</span>
+          </div>
+          <div className="summary-progress">
+            <div className="sp-track">
+              <div className="sp-fill" style={{ width: `${progressPct}%` }} />
+            </div>
+            <span className="sp-label">{progressPct}%</span>
+          </div>
         </div>
       </div>
 
       {/* Abas */}
       <div className="tabs">
-        <button className={`tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}>
-          tarefas
-        </button>
-        <button className={`tab ${tab === 'meetings' ? 'active' : ''}`} onClick={() => setTab('meetings')}>
-          reuniões
-        </button>
+        <button className={`tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}>tarefas</button>
+        <button className={`tab ${tab === 'meetings' ? 'active' : ''}`} onClick={() => setTab('meetings')}>reuniões</button>
         <div className="tab-spacer" />
-        <button
-          className="add-btn"
-          onClick={() => tab === 'tasks' ? setShowAddTask(true) : setShowAddMeeting(true)}
-        >
+        <button className="add-btn" onClick={() => tab === 'tasks' ? setShowAddTask(true) : setShowAddMeeting(true)}>
           + adicionar
         </button>
       </div>
@@ -191,10 +289,8 @@ export function MainApp() {
       {/* Lista de Tarefas */}
       {tab === 'tasks' && (
         <div className="list">
-          {tasks.length === 0 && (
-            <div className="empty">nenhuma tarefa. adicione uma acima!</div>
-          )}
-          {tasks.map(task => (
+          {dayTasks.length === 0 && <div className="empty">nenhuma tarefa para este dia.</div>}
+          {dayTasks.map(task => (
             <div key={task.id} className={`list-item ${task.done ? 'done' : ''}`}>
               <div className="list-check" onClick={() => toggleTask(task.id)}>
                 {task.done && (
@@ -214,10 +310,8 @@ export function MainApp() {
       {/* Lista de Reuniões */}
       {tab === 'meetings' && (
         <div className="list">
-          {meetings.length === 0 && (
-            <div className="empty">nenhuma reunião. adicione uma acima!</div>
-          )}
-          {meetings.map(meeting => {
+          {dayMeetings.length === 0 && <div className="empty">nenhuma reunião para este dia.</div>}
+          {dayMeetings.map(meeting => {
             const [h, m] = meeting.time.split(':').map(Number)
             const total = h * 60 + m + meeting.duration
             const endTime = `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
@@ -231,9 +325,7 @@ export function MainApp() {
                 <div className="meeting-info">
                   <span className="meeting-title">{meeting.title}</span>
                   {meeting.link && (
-                    <a className="meeting-link-tag" href={meeting.link} target="_blank" rel="noreferrer">
-                      abrir link
-                    </a>
+                    <a className="meeting-link-tag" href={meeting.link} target="_blank" rel="noreferrer">abrir link</a>
                   )}
                 </div>
                 <button className="list-delete" onClick={() => deleteMeeting(meeting.id)}>✕</button>
@@ -243,16 +335,15 @@ export function MainApp() {
         </div>
       )}
 
-      {/* Modais */}
       {showAddTask && (
         <AddTaskModal
-          onAdd={(text, tag) => addTask(text, tag)}
+          onAdd={(text, tag) => addTask(text, tag, selectedDate)}
           onClose={() => setShowAddTask(false)}
         />
       )}
       {showAddMeeting && (
         <AddMeetingModal
-          onAdd={(data) => addMeeting(data)}
+          onAdd={(data) => addMeeting({ ...data, date: selectedDate })}
           onClose={() => setShowAddMeeting(false)}
         />
       )}
