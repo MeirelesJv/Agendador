@@ -1,0 +1,50 @@
+{
+  "name": "agendeiro",
+  "version": "1.0.0",
+  "description": "Widget de agenda para o desktop",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run vite\" \"npm run electron:dev\"",
+    "vite": "vite",
+    "electron:dev": "wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .",
+    "build": "vite build && electron-builder",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "concurrently": "^8.2.0",
+    "cross-env": "^7.0.3",
+    "electron": "^29.0.0",
+    "electron-builder": "^24.9.0",
+    "typescript": "^5.2.0",
+    "vite": "^5.0.0",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.agendeiro.app",
+    "productName": "Agendeiro",
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "assets/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    }
+  }
+}
